@@ -43,10 +43,12 @@ export default function StarRating({
   };
 
   const textStyle = {
-    innerHeight: "1",
+    lineHeight: "1",
     margin: "0",
     color,
     fontSize: `${size}px`,
+    minWidth: `${size}px`,
+    textAlign: "left",
   };
 
   return (
