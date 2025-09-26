@@ -1,6 +1,7 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "SwiftConvert",
+  "name": "SwiftConvert - Currency Exchange Dashboard",
+  "description": "Convert, experiment, and flow through exchange rates with a modern currency exchange rate dashboard",
   "icons": [
     {
       "src": "favicon.ico",
@@ -20,6 +21,9 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#4A5568",
+  "background_color": "#1A202C",
+  "categories": ["finance", "utilities", "productivity"],
+  "lang": "en",
+  "orientation": "portrait-primary"
 }
