@@ -47,43 +47,10 @@ export default function App() {
   const [lastSync, setLastSync] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const parsedAmount = useMemo(() => {
-    if (amount === "") return null;
-    const numeric = Number.parseFloat(amount);
-    return Number.isFinite(numeric) ? numeric : null;
-  }, [amount]);
-
   useEffect(() => {
-    if (amount === "") {
+    const parsed = Number.parseFloat(amount);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
       setConvertedAmountOut(null);
-      setRate(null);
-      setLastSync(null);
-      setError("");
-      setIsLoading(false);
-      return;
-    }
-
-    if (parsedAmount === null) {
-      setConvertedAmountOut(null);
-      setRate(null);
-      setLastSync(null);
-      setError("Enter a valid numeric amount");
-      setIsLoading(false);
-      return;
-    }
-
-    if (parsedAmount === 0) {
-      setConvertedAmountOut("0.00");
-      setRate(currFrom === currTo ? 1 : null);
-      setLastSync(null);
-      setError("");
-      setIsLoading(false);
-      return;
-    }
-
-    if (currFrom === currTo) {
-      setConvertedAmountOut(parsedAmount.toFixed(2));
       setRate(1);
       setLastSync(new Date().toISOString().slice(0, 10));
       setError("");
@@ -112,7 +79,7 @@ export default function App() {
           throw new Error("Missing rate for selected currency");
         }
 
-        setConvertedAmountOut((parsedAmount * nextRate).toFixed(2));
+  setConvertedAmountOut((parsed * nextRate).toFixed(2));
         setRate(nextRate);
         setLastSync(data.date);
         setError("");
@@ -130,7 +97,7 @@ export default function App() {
     convert();
 
     return () => controller.abort();
-  }, [amount, currFrom, currTo, parsedAmount]);
+  }, [amount, currFrom, currTo]);
 
   const handleAmount = (event) => {
     setAmount(event.target.value);
@@ -288,10 +255,7 @@ export default function App() {
 
 function CurrencySelector({ id, value, onCurrChange, labelId }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(() => {
-    const index = currencyOptions.findIndex((option) => option.code === value);
-    return index === -1 ? 0 : index;
-  });
+  const [activeIndex, setActiveIndex] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const triggerRef = useRef(null);
   const listRef = useRef(null);
@@ -304,8 +268,6 @@ function CurrencySelector({ id, value, onCurrChange, labelId }) {
   }, [value]);
 
   useEffect(() => {
-    const index = currencyOptions.findIndex((option) => option.code === value);
-    setActiveIndex(index === -1 ? 0 : index);
     setSearchTerm("");
     setIsOpen(false);
   }, [value]);
@@ -347,8 +309,9 @@ function CurrencySelector({ id, value, onCurrChange, labelId }) {
   }, [isOpen, activeIndex]);
 
   const filteredOptions = useMemo(() => {
-    if (!searchTerm.trim()) return currencyOptions;
-    const term = searchTerm.trim().toLowerCase();
+    const trimmed = searchTerm.trim();
+    if (!trimmed) return currencyOptions;
+    const term = trimmed.toLowerCase();
     return currencyOptions.filter((option) => {
       return (
         option.code.toLowerCase().includes(term) ||
@@ -357,20 +320,61 @@ function CurrencySelector({ id, value, onCurrChange, labelId }) {
     });
   }, [searchTerm]);
 
+  const { orderedOptions, groups } = useMemo(() => {
+    const popular = [];
+    const others = [];
+
+    filteredOptions.forEach((option) => {
+      if (popularCodes.includes(option.code)) {
+        popular.push(option);
+      } else {
+        others.push(option);
+      }
+    });
+
+    return {
+      orderedOptions: [...popular, ...others],
+      groups: [
+        { label: "Popular", items: popular },
+        { label: "All currencies", items: others },
+      ].filter((group) => group.items.length > 0),
+    };
+  }, [filteredOptions]);
+
+  const indexLookup = useMemo(() => {
+    const map = new Map();
+    orderedOptions.forEach((option, index) => {
+      map.set(option.code, index);
+    });
+    return map;
+  }, [orderedOptions]);
+
   useEffect(() => {
-    if (!isOpen) return;
-    if (!filteredOptions.length) {
-      setActiveIndex(-1);
-      return;
-    }
-    const currentOption = filteredOptions[activeIndex];
-    if (!currentOption || !filteredOptions.includes(currentOption)) {
-      setActiveIndex(0);
-    }
-  }, [filteredOptions, isOpen, activeIndex]);
+    const selectedIndex = indexLookup.get(value);
+    const hasSearch = Boolean(searchTerm.trim());
+    setActiveIndex((previous) => {
+      if (!orderedOptions.length) {
+        return -1;
+      }
+
+      if (selectedIndex != null) {
+        return selectedIndex;
+      }
+
+      if (hasSearch) {
+        return 0;
+      }
+
+      if (previous < 0 || previous >= orderedOptions.length) {
+        return 0;
+      }
+
+      return previous;
+    });
+  }, [value, orderedOptions, indexLookup, searchTerm]);
 
   const commitSelection = (index) => {
-    const option = filteredOptions[index];
+    const option = orderedOptions[index];
     if (!option) return;
     onCurrChange(option.code);
     setIsOpen(false);
@@ -380,7 +384,7 @@ function CurrencySelector({ id, value, onCurrChange, labelId }) {
   };
 
   const moveActive = (delta) => {
-    const total = filteredOptions.length;
+    const total = orderedOptions.length;
     if (total === 0) return;
     setIsOpen(true);
     setActiveIndex((current) => {
@@ -391,9 +395,9 @@ function CurrencySelector({ id, value, onCurrChange, labelId }) {
   };
 
   const setActive = (index) => {
-    if (!filteredOptions.length) return;
+    if (!orderedOptions.length) return;
     setIsOpen(true);
-    setActiveIndex(Math.max(0, Math.min(index, filteredOptions.length - 1)));
+    setActiveIndex(Math.max(0, Math.min(index, orderedOptions.length - 1)));
   };
 
   const handleTriggerKeyDown = (event) => {
@@ -417,7 +421,7 @@ function CurrencySelector({ id, value, onCurrChange, labelId }) {
         break;
       case "End":
         event.preventDefault();
-        setActive(currencyOptions.length - 1);
+        setActive(orderedOptions.length - 1);
         break;
       case "Enter":
       case " ":
@@ -439,7 +443,7 @@ function CurrencySelector({ id, value, onCurrChange, labelId }) {
     }
   };
 
-  const activeOption = filteredOptions[activeIndex] ?? null;
+  const activeOption = orderedOptions[activeIndex] ?? null;
   const listboxId = `${id}-listbox`;
   const valueId = `${id}-value`;
   const labelledBy = labelId ? `${labelId} ${valueId}` : `${valueId}`;
@@ -494,7 +498,7 @@ function CurrencySelector({ id, value, onCurrChange, labelId }) {
           tabIndex={-1}
           aria-hidden={!isOpen}
         >
-          {filteredOptions.length === 0 ? (
+          {orderedOptions.length === 0 ? (
             <li
               className="select-option select-option--empty"
               role="presentation"
@@ -504,11 +508,12 @@ function CurrencySelector({ id, value, onCurrChange, labelId }) {
           ) : (
             <OptionList
               id={id}
-              options={filteredOptions}
+              groups={groups}
+              indexLookup={indexLookup}
               activeIndex={activeIndex}
               selectedCode={selectedOption.code}
               onSelect={commitSelection}
-              onHover={setActiveIndex}
+              onHover={setActive}
             />
           )}
         </ul>
@@ -519,64 +524,46 @@ function CurrencySelector({ id, value, onCurrChange, labelId }) {
 
 function OptionList({
   id,
-  options,
+  groups,
+  indexLookup,
   activeIndex,
   selectedCode,
   onSelect,
   onHover,
 }) {
-  const groups = useMemo(() => {
-    const popular = [];
-    const others = [];
-    options.forEach((option) => {
-      if (popularCodes.includes(option.code)) {
-        popular.push(option);
-      } else {
-        others.push(option);
-      }
-    });
-    return [
-      { label: "Popular", items: popular },
-      { label: "All currencies", items: others },
-    ].filter((group) => group.items.length > 0);
-  }, [options]);
+  return groups.map((group) => (
+    <li key={group.label} role="presentation" className="select-group">
+      <div className="select-group__label">{group.label}</div>
+      <ul role="presentation" className="select-group__list">
+        {group.items.map((option) => {
+          const optionIndex = indexLookup.get(option.code);
+          if (optionIndex == null) {
+            return null;
+          }
 
-  let runningIndex = 0;
+          const isSelected = option.code === selectedCode;
+          const isActive = optionIndex === activeIndex;
 
-  return groups.map((group) => {
-    const groupStartIndex = runningIndex;
-    const content = group.items.map((option, index) => {
-      const optionIndex = groupStartIndex + index;
-      runningIndex += 1;
-      const isSelected = option.code === selectedCode;
-      const isActive = optionIndex === activeIndex;
-      return (
-        <li
-          key={option.code}
-          id={`${id}-option-${option.code}`}
-          role="option"
-          aria-selected={isSelected}
-          className={`select-option${isSelected ? " is-selected" : ""}${
-            isActive ? " is-active" : ""
-          }`}
-          data-index={optionIndex}
-          onMouseEnter={() => onHover(optionIndex)}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => onSelect(optionIndex)}
-        >
-          <span className="select-option__code">{option.code}</span>
-          <span className="select-option__name">{option.name}</span>
-        </li>
-      );
-    });
-
-    return (
-      <li key={group.label} role="presentation" className="select-group">
-        <div className="select-group__label">{group.label}</div>
-        <ul role="presentation" className="select-group__list">
-          {content}
-        </ul>
-      </li>
-    );
-  });
+          return (
+            <li
+              key={option.code}
+              id={`${id}-option-${option.code}`}
+              role="option"
+              aria-selected={isSelected}
+              className={`select-option${isSelected ? " is-selected" : ""}${
+                isActive ? " is-active" : ""
+              }`}
+              data-index={optionIndex}
+              onMouseEnter={() => onHover(optionIndex)}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => onSelect(optionIndex)}
+            >
+              <span className="select-option__code">{option.code}</span>
+              <span className="select-option__name">{option.name}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </li>
+  ));
 }
