@@ -167,10 +167,10 @@ export default function App() {
       <main className="converter-card">
         <header className="card-header">
           <span className="badge">Live FX</span>
-          <h1 className="headline">Currency Alchemy</h1>
+          <h1 className="headline">SwiftConvert</h1>
           <p className="subhead">
-            Convert, experiment, and flow through exchange rates with a neon-ready
-            dashboard.
+            Convert, experiment, and flow through exchange rates with a modern
+            currency exchange rate dashboard.
           </p>
         </header>
 
@@ -236,9 +236,7 @@ export default function App() {
         </section>
 
         <section
-          className={`result-card ${
-            isLoading ? "result-card--loading" : ""
-          }`}
+          className={`result-card ${isLoading ? "result-card--loading" : ""}`}
           aria-live="polite"
         >
           <div className="result-top">
@@ -263,7 +261,7 @@ export default function App() {
               {isLoading
                 ? "Sampling market data..."
                 : rate
-                  ? "Mirroring the live interbank mid-rate." 
+                  ? "Mirroring the live interbank mid-rate."
                   : "Waiting for your next move."}
             </p>
           </article>
@@ -344,9 +342,7 @@ function CurrencySelector({ id, value, onCurrChange, labelId }) {
 
   useEffect(() => {
     if (!isOpen || !listRef.current) return;
-    const node = listRef.current.querySelector(
-      `[data-index="${activeIndex}"]`,
-    );
+    const node = listRef.current.querySelector(`[data-index="${activeIndex}"]`);
     node?.scrollIntoView({ block: "nearest" });
   }, [isOpen, activeIndex]);
 
@@ -462,7 +458,9 @@ function CurrencySelector({ id, value, onCurrChange, labelId }) {
         aria-expanded={isOpen}
         aria-controls={listboxId}
         aria-activedescendant={
-          isOpen && activeOption ? `${id}-option-${activeOption.code}` : undefined
+          isOpen && activeOption
+            ? `${id}-option-${activeOption.code}`
+            : undefined
         }
         aria-labelledby={labelledBy}
         onClick={() => setIsOpen((open) => !open)}
@@ -497,7 +495,10 @@ function CurrencySelector({ id, value, onCurrChange, labelId }) {
           aria-hidden={!isOpen}
         >
           {filteredOptions.length === 0 ? (
-            <li className="select-option select-option--empty" role="presentation">
+            <li
+              className="select-option select-option--empty"
+              role="presentation"
+            >
               No matches. Try another search.
             </li>
           ) : (
@@ -516,7 +517,14 @@ function CurrencySelector({ id, value, onCurrChange, labelId }) {
   );
 }
 
-function OptionList({ id, options, activeIndex, selectedCode, onSelect, onHover }) {
+function OptionList({
+  id,
+  options,
+  activeIndex,
+  selectedCode,
+  onSelect,
+  onHover,
+}) {
   const groups = useMemo(() => {
     const popular = [];
     const others = [];
