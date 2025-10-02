@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import StarRating from "./StarRating";
 
 const average = (arr) =>
@@ -9,10 +9,15 @@ const KEY = "3bdb4434";
 export default function App() {
   const [movies, setMovies] = useState([]);
   const [query, setQuery] = useState("");
-  const [watched, setWatched] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState(null);
+
+  // const [watched, setWatched] = useState([]);
+  const [watched, setWatched] = useState(() => {
+    const storedVals = localStorage.getItem("watched");
+    return JSON.parse(storedVals);
+  });
 
   function handleSelect(id) {
     setSelectedId((selectedId) => (id === selectedId ? null : id));
@@ -24,11 +29,19 @@ export default function App() {
 
   function handleAddMovie(movie) {
     setWatched((watched) => [...watched, movie]);
+    // localStorage.setItem("watched", JSON.stringify([...watched, movie]));
   }
 
   function handleDeleteWatched(id) {
     setWatched((watched) => watched.filter((movie) => movie.imdbID !== id));
   }
+
+  useEffect(
+    function () {
+      localStorage.setItem("watched", JSON.stringify(watched));
+    },
+    [watched],
+  );
 
   useEffect(
     function () {
@@ -157,6 +170,35 @@ function Logo() {
 }
 
 function Search({ query, setQuery }) {
+  const inputEl = useRef(null);
+
+  useEffect(
+    function () {
+      function callback(e) {
+        if (document.activeElement !== inputEl.current) {
+          if (e.code === "Enter") {
+            inputEl.current.focus();
+            setQuery("");
+            console.log("eventListerner fired");
+          }
+        }
+      }
+      document.addEventListener("keydown", callback);
+      return () => {
+        document.removeEventListener("keydown", callback);
+      };
+    },
+    [setQuery],
+  );
+
+  // not the react way to get focus automatically on searchbar as website loads
+  // we use refs in react
+  //
+  // useEffect(function () {
+  //   const el = document.querySelector(".search");
+  //   el.focus();
+  // }, []);
+
   return (
     <input
       className="search"
@@ -164,6 +206,7 @@ function Search({ query, setQuery }) {
       placeholder="Search movies..."
       value={query}
       onChange={(e) => setQuery(e.target.value)}
+      ref={inputEl}
     />
   );
 }
@@ -242,6 +285,15 @@ function MovieDetails({ selectedId, onCloseMovie, onAddWatched, watched }) {
   const [loading, setLoading] = useState(false);
   const [userRating, setUserRating] = useState("");
 
+  const countRef = useRef(0);
+
+  useEffect(
+    function () {
+      if (userRating) countRef.current = countRef.current + 1;
+    },
+    [userRating],
+  );
+
   const {
     imdbID,
     Title,
@@ -265,6 +317,7 @@ function MovieDetails({ selectedId, onCloseMovie, onAddWatched, watched }) {
       imdbRating: Number(imdbRating),
       Runtime: Number(Runtime.split(" ").at(0)),
       userRating,
+      countRatingDecisions: countRef.current,
     };
 
     onAddWatched(newWatchedMovie);
