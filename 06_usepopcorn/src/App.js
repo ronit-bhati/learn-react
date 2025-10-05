@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import StarRating from "./StarRating";
+import { useLocalStorageState } from "./useLocalStorageState";
+import { useMovies } from "./useMovies";
+import { useKey } from "./useKey";
 
 const average = (arr) =>
   arr.reduce((acc, cur, i, arr) => acc + cur / arr.length, 0);
@@ -7,17 +10,10 @@ const average = (arr) =>
 const KEY = "3bdb4434";
 
 export default function App() {
-  const [movies, setMovies] = useState([]);
   const [query, setQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState(null);
-
-  // const [watched, setWatched] = useState([]);
-  const [watched, setWatched] = useState(() => {
-    const storedVals = localStorage.getItem("watched");
-    return JSON.parse(storedVals);
-  });
+  const { movies, isLoading, error } = useMovies(query)
+  const [watched, setWatched] = useLocalStorageState([], 'watched')
 
   function handleSelect(id) {
     setSelectedId((selectedId) => (id === selectedId ? null : id));
@@ -35,62 +31,6 @@ export default function App() {
   function handleDeleteWatched(id) {
     setWatched((watched) => watched.filter((movie) => movie.imdbID !== id));
   }
-
-  useEffect(
-    function () {
-      localStorage.setItem("watched", JSON.stringify(watched));
-    },
-    [watched],
-  );
-
-  useEffect(
-    function () {
-      const controller = new AbortController();
-      const fetchMovies = async () => {
-        try {
-          setIsLoading(true);
-          setError("");
-
-          const res = await fetch(
-            `http://www.omdbapi.com/?apikey=${KEY}&s=${query}`,
-            { signal: controller.signal },
-          );
-
-          if (!res.ok) {
-            throw new Error("Something went wrong with fetching movies");
-          }
-
-          const data = await res.json();
-
-          if (data.Response === "False") {
-            throw new Error("Movie not found!");
-          }
-
-          setMovies(data.Search);
-          setError("");
-        } catch (error) {
-          if (error.name !== "AbortError") {
-            setError(error.message);
-          }
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
-      if (query.length < 3) {
-        setMovies([]);
-        setError("");
-        return;
-      }
-
-      fetchMovies();
-
-      return function () {
-        controller.abort();
-      };
-    },
-    [query],
-  );
 
   return (
     <>
@@ -172,24 +112,14 @@ function Logo() {
 function Search({ query, setQuery }) {
   const inputEl = useRef(null);
 
-  useEffect(
-    function () {
-      function callback(e) {
-        if (document.activeElement !== inputEl.current) {
-          if (e.code === "Enter") {
-            inputEl.current.focus();
-            setQuery("");
-            console.log("eventListerner fired");
-          }
-        }
-      }
-      document.addEventListener("keydown", callback);
-      return () => {
-        document.removeEventListener("keydown", callback);
-      };
-    },
-    [setQuery],
-  );
+  useKey('Enter', function () {
+    if (document.activeElement !== inputEl.current) {
+      inputEl.current.focus();
+      setQuery("");
+      console.log("eventListerner fired");
+    }
+
+  })
 
   // not the react way to get focus automatically on searchbar as website loads
   // we use refs in react
@@ -324,21 +254,7 @@ function MovieDetails({ selectedId, onCloseMovie, onAddWatched, watched }) {
     onCloseMovie();
   }
 
-  useEffect(
-    function () {
-      function callback(e) {
-        if (e.code === "Escape") {
-          onCloseMovie();
-        }
-      }
-      document.addEventListener("keydown", callback);
-
-      return function () {
-        document.removeEventListener("keydown", callback);
-      };
-    },
-    [onCloseMovie],
-  );
+  useKey('Escape', onCloseMovie)
 
   useEffect(() => {
     const getMovieDetails = async () => {
